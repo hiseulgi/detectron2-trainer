@@ -1,0 +1,4 @@
+MODEL_FACTORY:
+  CFG: COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml
+  HYPERPARAMS: configs/experiment/faster_rcnn_base.yaml
+  TOTAL_EPOCHS: 20

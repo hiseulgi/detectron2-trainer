@@ -1,0 +1,15 @@
+DATALOADER:
+  NUM_WORKERS: 2
+MODEL:
+  DEVICE: cpu # cuda or cpu
+  ROI_HEADS:
+    NUM_CLASSES: 1 # person only
+    BATCH_SIZE_PER_IMAGE: 128
+SOLVER:
+  BASE_LR: 0.02
+  IMS_PER_BATCH: 16 # BATCH SIZE (2 - 16)
+  # WARMUP_ITERS: 100
+  MAX_ITER: 2 # will be replaced by the value from the notebook (calculation from expected epochs)
+  # STEPS: [500, 750] # will be replaced by the value from the notebook (calculation from expected epochs)
+TEST:
+  EVAL_PERIOD: 1 # will be replaced by the value from the notebook (calculation from expected epochs)
