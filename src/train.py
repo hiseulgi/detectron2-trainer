@@ -7,6 +7,7 @@ import os
 
 import comet_ml
 from detectron2.engine import DefaultPredictor, hooks
+from dotenv import load_dotenv
 from yacs.config import CfgNode
 
 from src.data.data_module import CocoDataModule
@@ -15,7 +16,11 @@ from src.schema.trainer_schema import TrainerSchema
 from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
-comet_ml.init(api_key="1ZPu0v4EBOYV8os4QIGBLs5Zs", project_name="dummy_playground")
+# Comet ML setup from .env
+load_dotenv()
+comet_ml.init(
+    api_key=os.getenv("COMET_API_KEY"), project_name=os.getenv("COMET_PROJECT_NAME")
+)
 
 
 def main(params_cfg: CfgNode):
@@ -43,6 +48,7 @@ def main(params_cfg: CfgNode):
         model_config=params_cfg.MODEL_FACTORY.CFG,
         hyperparameters_config=params_cfg.MODEL_FACTORY.HYPERPARAMS,
         total_epochs=params_cfg.MODEL_FACTORY.TOTAL_EPOCHS,
+        is_use_epoch=params_cfg.MODEL_FACTORY.IS_USE_EPOCH,
     ).get_cfg()
 
     # trainer setup

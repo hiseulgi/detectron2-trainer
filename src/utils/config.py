@@ -14,6 +14,7 @@ _C.MODEL_FACTORY = CN()
 _C.MODEL_FACTORY.CFG = "COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"
 _C.MODEL_FACTORY.HYPERPARAMS = "configs/experiment/faster_rcnn_base.yaml"
 _C.MODEL_FACTORY.TOTAL_EPOCHS = 20
+_C.MODEL_FACTORY.IS_USE_EPOCH = False
 
 
 def get_params_cfg_defaults():
