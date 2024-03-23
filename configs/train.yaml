@@ -2,3 +2,5 @@ MODEL_FACTORY:
   HYPERPARAMS: configs/experiment/faster_rcnn_base.yaml
   IS_USE_EPOCH: False
   TOTAL_EPOCHS: 20
+MODEL:
+  DEVICE: cuda # cuda or cpu

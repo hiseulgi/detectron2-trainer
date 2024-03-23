@@ -1,7 +1,6 @@
 DATALOADER:
   NUM_WORKERS: 0
 MODEL:
-  DEVICE: cpu # cuda or cpu
   ROI_HEADS:
     NUM_CLASSES: 1 # person only
     BATCH_SIZE_PER_IMAGE: 128
