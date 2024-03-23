@@ -55,7 +55,7 @@ def log_image_predictions(
     metadata: any,
     num_images=5,
 ):
-    dataset_valid = DatasetCatalog.get(metadata.dataset_name)
+    dataset_valid = DatasetCatalog.get(metadata.name)
 
     for index, d in enumerate(dataset_valid):
         if index == num_images:
@@ -73,16 +73,7 @@ def log_image_predictions(
         out = visualizer.draw_instance_predictions(outputs["instances"].to("cpu"))
 
         # Log image
-        experiment.log_image(out.get_image()[:, :, ::-1], name=d["file_name"])
-
-        # Log predictions data
-        predictions_data = {
-            "file_name": d["file_name"],
-            "predictions": outputs["instances"].to("cpu").to_dict(),
-        }
-        experiment.log_asset_data(
-            json.dumps(predictions_data), name=f"predictions_data_{index}.json"
-        )
+        experiment.log_image(out.get_image()[:, :, :], name=d["file_name"])
 
 
 class CometDefaultTrainer(DefaultTrainer):

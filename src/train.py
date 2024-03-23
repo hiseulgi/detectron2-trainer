@@ -6,7 +6,7 @@ import argparse
 import os
 
 import comet_ml
-from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
+from detectron2.data import build_detection_test_loader
 from detectron2.engine import DefaultPredictor, hooks
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from dotenv import load_dotenv
@@ -14,7 +14,6 @@ from yacs.config import CfgNode
 
 from src.data.data_module import CocoDataModule
 from src.models.faster_rcnn import FasterRCNN
-from src.schema.trainer_schema import TrainerSchema
 from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
@@ -26,9 +25,13 @@ comet_ml.init(
 
 
 def main(params_cfg: CfgNode):
+    # ====================
+    # COMET ML SETUP
     # get comet_ml experiment
     experiment = comet_ml.Experiment()
 
+    # ====================
+    # DATA SETUP
     # data module setup
     datamodule = CocoDataModule(
         datasets_name=params_cfg.DATAMODULE.DATASETS_NAME,
@@ -43,6 +46,8 @@ def main(params_cfg: CfgNode):
         split="train"
     )
 
+    # ====================
+    # MODEL SETUP
     # model config setup
     cfg = FasterRCNN(
         datasets_name=params_cfg.DATAMODULE.DATASETS_NAME,
@@ -53,8 +58,16 @@ def main(params_cfg: CfgNode):
         is_use_epoch=params_cfg.MODEL_FACTORY.IS_USE_EPOCH,
     ).get_cfg()
 
+    # ====================
+    # TRAINER SETUP
     # trainer setup
     trainer = CometDefaultTrainer(cfg, experiment)
+
+    # calculate eval period based on total epochs
+    if params_cfg.MODEL_FACTORY.IS_USE_EPOCH:
+        cfg.TEST.EVAL_PERIOD = (
+            cfg.SOLVER.MAX_ITER // params_cfg.MODEL_FACTORY.TOTAL_EPOCHS
+        )
 
     # Register Hook to compute metrics using an Evaluator Object
     trainer.register_hooks(
@@ -75,15 +88,24 @@ def main(params_cfg: CfgNode):
         ]
     )
 
-    # print all hooks
-    print(
-        f"\n======================\nTrainer Hooks: {trainer._hooks}\n======================\n"
-    )
+    # ====================
+    # TRAINING
+    # Train Model
+    print("\n\n====================")
+    print("Start Training")
 
     trainer.resume_or_load(resume=False)
     trainer.train()
 
+    print("\n\nEnd Training")
+    print("====================\n\n")
+
+    # ====================
+    # EVALUATION
     # Evaluation Test Set
+    print("\n\n====================")
+    print("Start Evaluation")
+
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
     predictor = DefaultPredictor(cfg)
@@ -95,7 +117,7 @@ def main(params_cfg: CfgNode):
 
     # log metrics and add prefix
     for k, v in test_results.items():
-        experiment.log_metrics(v, prefix=f"test-{k}")
+        experiment.log_metrics(v, prefix=f"test/{k}")
 
     # log image predictions
     log_image_predictions(
@@ -105,14 +127,42 @@ def main(params_cfg: CfgNode):
         num_images=10,
     )
 
+    print("\n\nEnd Evaluation")
+    print("====================\n\n")
+
     # log model
+    print("\n\n====================")
+    print("Log Model")
+
     experiment.log_model("faster_rcnn", cfg.MODEL.WEIGHTS)
+
+    print("\n\nEnd Log Model")
+    print("====================\n\n")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Program description")
+    parser.add_argument(
+        "--data_config",
+        default="configs/data/default.yaml",
+        help="Path to data configuration file",
+    )
+    parser.add_argument(
+        "--model_config",
+        default="configs/model/faster_rcnn.yaml",
+        help="Path to model configuration file",
+    )
+    parser.add_argument(
+        "--train_config",
+        default="configs/train.yaml",
+        help="Path to training configuration file",
+    )
+
+    args = parser.parse_args()
+
     params_cfg = get_params_cfg_defaults()
-    params_cfg.merge_from_file("configs/data/default.yaml")
-    params_cfg.merge_from_file("configs/model/faster_rcnn.yaml")
-    params_cfg.merge_from_file("configs/train.yaml")
+    params_cfg.merge_from_file(args.data_config)
+    params_cfg.merge_from_file(args.model_config)
+    params_cfg.merge_from_file(args.train_config)
 
     main(params_cfg)
