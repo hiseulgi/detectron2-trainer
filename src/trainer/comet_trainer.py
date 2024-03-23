@@ -123,7 +123,7 @@ class CometDefaultTrainer(DefaultTrainer):
 
         # Log Computed Metrics to Comet
         for k, v in res.items():
-            self.experiment.log_metrics(v, prefix=f"eval-{k}")
+            self.experiment.log_metrics(v, prefix=f"valid/{k}")
 
         return res
 
@@ -181,9 +181,9 @@ class CometDefaultTrainer(DefaultTrainer):
             mean_loss = np.mean(losses)
 
             # Log to Comet
-            self.experiment.log_metric("eval_loss", mean_loss)
+            self.experiment.log_metric("valid/total_loss", mean_loss)
 
-            storage.put_scalar("eval_loss", mean_loss)
+            storage.put_scalar("valid/total_loss", mean_loss)
             comm.synchronize()
 
         # Returns empty dict to satisfy Dectron Eval Hook requirement
@@ -203,7 +203,7 @@ class CometDefaultTrainer(DefaultTrainer):
         self,
         loss_dict: Dict[str, torch.Tensor],
         data_time: float,
-        prefix: str = "",
+        prefix: str = "train/",
     ):
         """Patch for existing Default Trainer _write_metrics method so that
         metrics can also be logged to Comet
@@ -242,9 +242,9 @@ class CometDefaultTrainer(DefaultTrainer):
 
             self.experiment.log_metrics(metrics_dict, prefix=prefix)
             self.experiment.log_metric(
-                "{}total_loss".format(prefix),
+                f"{prefix}total_loss",
                 total_losses_reduced,
             )
-            storage.put_scalar("{}total_loss".format(prefix), total_losses_reduced)
+            storage.put_scalar(f"{prefix}total_loss", total_losses_reduced)
             if len(metrics_dict) > 1:
                 storage.put_scalars(**metrics_dict)
