@@ -112,32 +112,20 @@ class CometDefaultTrainer(DefaultTrainer):
             cfg (CfgNode): Detectron Config Object
             model (torch.nn.Module): Model Object
         """
-        # Evaluate on training set
-        train_evaluators = [
-            self.build_evaluator(
-                cfg, name, output_folder=os.path.join(cfg.OUTPUT_DIR, "evaluation")
-            )
-            for name in cfg.DATASETS.TRAIN
-        ]
-        train_res = self.test(cfg, model, train_evaluators)
-        train_res = OrderedDict({f"train/{k}": v for k, v in train_res.items()})
-
-        # Evaluate on test set
-        test_evaluators = [
+        evaluators = [
             self.build_evaluator(
                 cfg, name, output_folder=os.path.join(cfg.OUTPUT_DIR, "evaluation")
             )
             for name in cfg.DATASETS.TEST
         ]
-        test_res = self.test(cfg, model, test_evaluators)
-        test_res = OrderedDict({f"valid/{k}": v for k, v in test_res.items()})
+        res = self.test(cfg, model, evaluators)
+        res = OrderedDict({k: v for k, v in res.items()})
 
-        # Log Computed Metrics to Comet for both train and test sets
-        all_res = {**train_res, **test_res}
-        for k, v in all_res.items():
-            self.experiment.log_metrics(v, prefix=k)
+        # Log Computed Metrics to Comet
+        for k, v in res.items():
+            self.experiment.log_metrics(v, prefix=f"eval-{k}")
 
-        return all_res
+        return res
 
     def evaluate_loss(self, cfg, model):
         """Compute and log the validation loss to Comet
@@ -193,9 +181,9 @@ class CometDefaultTrainer(DefaultTrainer):
             mean_loss = np.mean(losses)
 
             # Log to Comet
-            self.experiment.log_metric("valid/loss", mean_loss)
+            self.experiment.log_metric("eval_loss", mean_loss)
 
-            storage.put_scalar("valid/loss", mean_loss)
+            storage.put_scalar("eval_loss", mean_loss)
             comm.synchronize()
 
         # Returns empty dict to satisfy Dectron Eval Hook requirement
@@ -215,7 +203,7 @@ class CometDefaultTrainer(DefaultTrainer):
         self,
         loss_dict: Dict[str, torch.Tensor],
         data_time: float,
-        prefix: str = "train/",
+        prefix: str = "",
     ):
         """Patch for existing Default Trainer _write_metrics method so that
         metrics can also be logged to Comet

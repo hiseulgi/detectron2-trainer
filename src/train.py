@@ -6,7 +6,9 @@ import argparse
 import os
 
 import comet_ml
+from detectron2.data import DatasetCatalog, MetadataCatalog, build_detection_test_loader
 from detectron2.engine import DefaultPredictor, hooks
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from dotenv import load_dotenv
 from yacs.config import CfgNode
 
@@ -53,7 +55,6 @@ def main(params_cfg: CfgNode):
 
     # trainer setup
     trainer = CometDefaultTrainer(cfg, experiment)
-    trainer.resume_or_load(resume=False)
 
     # Register Hook to compute metrics using an Evaluator Object
     trainer.register_hooks(
@@ -79,13 +80,24 @@ def main(params_cfg: CfgNode):
         f"\n======================\nTrainer Hooks: {trainer._hooks}\n======================\n"
     )
 
+    trainer.resume_or_load(resume=False)
     trainer.train()
 
     # Evaluation Test Set
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
     predictor = DefaultPredictor(cfg)
+    evaluator = COCOEvaluator(
+        cfg.DATASETS.TEST[0], cfg, False, output_dir=cfg.OUTPUT_DIR
+    )
+    test_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST[0])
+    eval_results = inference_on_dataset(predictor.model, test_loader, evaluator)
 
+    # log metrics and add prefix
+    for k, v in eval_results.items():
+        experiment.log_metric(k, v, prefix="test-")
+
+    # log image predictions
     log_image_predictions(
         predictor=predictor,
         experiment=experiment,
