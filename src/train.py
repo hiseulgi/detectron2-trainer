@@ -17,17 +17,16 @@ from src.models.faster_rcnn import FasterRCNN
 from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
-# Comet ML setup from .env
 load_dotenv()
-comet_ml.init(
-    api_key=os.getenv("COMET_API_KEY"), project_name=os.getenv("COMET_PROJECT_NAME")
-)
 
 
 def main(params_cfg: CfgNode):
     # ====================
     # COMET ML SETUP
     # get comet_ml experiment
+    comet_ml.init(
+        api_key=os.getenv("COMET_API_KEY"), project_name=os.getenv("COMET_PROJECT_NAME")
+    )
     experiment = comet_ml.Experiment()
 
     # ====================
@@ -108,15 +107,16 @@ def main(params_cfg: CfgNode):
 
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+    cfg.DATASETS.TEST = params_cfg.DATAMODULE.DATASETS_NAME + "_test"
+
     predictor = DefaultPredictor(cfg)
-    evaluator = COCOEvaluator(
-        cfg.DATASETS.TEST[0], cfg, False, output_dir=cfg.OUTPUT_DIR
-    )
-    test_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST[0])
-    test_results = inference_on_dataset(predictor.model, test_loader, evaluator)
+    evaluator = COCOEvaluator(cfg.DATASETS.TEST, cfg, False, output_dir=cfg.OUTPUT_DIR)
+
+    test_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST)
+    test_results = inference_on_dataset(trainer.model, test_loader, evaluator)
 
     # log metrics and add prefix
-    for k, v in test_results["bbox"].items():
+    for k, v in test_results.items():
         print(f"test/{k}: {v}")
         experiment.log_metrics(v, prefix=f"test/{k}")
 

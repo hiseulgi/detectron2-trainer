@@ -8,14 +8,14 @@ import os
 import comet_ml
 from detectron2.config import CfgNode
 from detectron2.data import build_detection_test_loader
-from detectron2.engine import DefaultPredictor
+from detectron2.engine import DefaultPredictor, DefaultTrainer
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from dotenv import load_dotenv
 from yacs.config import CfgNode
 
 from src.data.data_module import CocoDataModule
 from src.models.faster_rcnn import FasterRCNN
-from src.trainer.comet_trainer import log_image_predictions
+from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
 load_dotenv()
@@ -31,7 +31,7 @@ def main(params_cfg: CfgNode, experiment_key: str = None):
             project_name=os.getenv("COMET_PROJECT_NAME"),
         )
         # get comet_ml experiment
-        experiment = comet_ml.Experiment(experiment_key=experiment_key)
+        experiment = comet_ml.ExistingExperiment(experiment_key=experiment_key)
 
     # ====================
     # DATA SETUP
@@ -60,21 +60,25 @@ def main(params_cfg: CfgNode, experiment_key: str = None):
         is_use_epoch=params_cfg.MODEL_FACTORY.IS_USE_EPOCH,
     ).get_cfg()
 
+    trainer = DefaultTrainer(cfg)
+    trainer.resume_or_load(resume=True)
+
     # ====================
     # EVALUATION
     # Find the latest checkpoint
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+    cfg.DATASETS.TEST = params_cfg.DATAMODULE.DATASETS_NAME + "_test"
+
     predictor = DefaultPredictor(cfg)
-    evaluator = COCOEvaluator(
-        cfg.DATASETS.TEST[0], cfg, False, output_dir=cfg.OUTPUT_DIR
-    )
-    test_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST[0])
-    test_results = inference_on_dataset(predictor.model, test_loader, evaluator)
+    evaluator = COCOEvaluator(cfg.DATASETS.TEST, cfg, False, output_dir=cfg.OUTPUT_DIR)
+
+    test_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST)
+    test_results = inference_on_dataset(trainer.model, test_loader, evaluator)
 
     # log metrics and add prefix
     if experiment_key:
-        for k, v in test_results["bbox"].items():
+        for k, v in test_results.items():
             print(f"test/{k}: {v}")
             experiment.log_metrics(v, prefix=f"test/{k}")
 
