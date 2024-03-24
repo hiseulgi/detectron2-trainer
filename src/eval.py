@@ -6,33 +6,35 @@ import argparse
 import os
 
 import comet_ml
+from detectron2.config import CfgNode
 from detectron2.data import build_detection_test_loader
-from detectron2.engine import DefaultPredictor, hooks
+from detectron2.engine import DefaultPredictor
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from dotenv import load_dotenv
 from yacs.config import CfgNode
 
 from src.data.data_module import CocoDataModule
 from src.models.faster_rcnn import FasterRCNN
-from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
+from src.trainer.comet_trainer import log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
-# Comet ML setup from .env
 load_dotenv()
-comet_ml.init(
-    api_key=os.getenv("COMET_API_KEY"), project_name=os.getenv("COMET_PROJECT_NAME")
-)
 
 
-def main(params_cfg: CfgNode):
+def main(params_cfg: CfgNode, experiment_key: str = None):
     # ====================
     # COMET ML SETUP
-    # get comet_ml experiment
-    experiment = comet_ml.Experiment()
+    # Comet ML setup from .env
+    if experiment_key:
+        comet_ml.init(
+            api_key=os.getenv("COMET_API_KEY"),
+            project_name=os.getenv("COMET_PROJECT_NAME"),
+        )
+        # get comet_ml experiment
+        experiment = comet_ml.Experiment(experiment_key=experiment_key)
 
     # ====================
     # DATA SETUP
-    # data module setup
     datamodule = CocoDataModule(
         datasets_name=params_cfg.DATAMODULE.DATASETS_NAME,
         images_path=params_cfg.DATAMODULE.IMAGES_PATH,
@@ -59,53 +61,8 @@ def main(params_cfg: CfgNode):
     ).get_cfg()
 
     # ====================
-    # TRAINER SETUP
-    # trainer setup
-    trainer = CometDefaultTrainer(cfg, experiment)
-
-    # calculate eval period based on total epochs
-    if params_cfg.MODEL_FACTORY.IS_USE_EPOCH:
-        cfg.TEST.EVAL_PERIOD = (
-            cfg.SOLVER.MAX_ITER // params_cfg.MODEL_FACTORY.TOTAL_EPOCHS
-        )
-
-    # Register Hook to compute metrics using an Evaluator Object
-    trainer.register_hooks(
-        [
-            hooks.EvalHook(
-                cfg.TEST.EVAL_PERIOD,
-                lambda: trainer.evaluate_metrics(cfg, trainer.model),
-            )
-        ]
-    )
-
-    # Register Hook to compute eval loss
-    trainer.register_hooks(
-        [
-            hooks.EvalHook(
-                cfg.TEST.EVAL_PERIOD, lambda: trainer.evaluate_loss(cfg, trainer.model)
-            )
-        ]
-    )
-
-    # ====================
-    # TRAINING
-    # Train Model
-    print("\n\n====================")
-    print("Start Training")
-
-    trainer.resume_or_load(resume=False)
-    trainer.train()
-
-    print("\n\nEnd Training")
-    print("====================\n\n")
-
-    # ====================
     # EVALUATION
-    # Evaluation Test Set
-    print("\n\n====================")
-    print("Start Evaluation")
-
+    # Find the latest checkpoint
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
     predictor = DefaultPredictor(cfg)
@@ -116,28 +73,20 @@ def main(params_cfg: CfgNode):
     test_results = inference_on_dataset(predictor.model, test_loader, evaluator)
 
     # log metrics and add prefix
-    for k, v in test_results["bbox"].items():
-        print(f"test/{k}: {v}")
-        experiment.log_metrics(v, prefix=f"test/{k}")
+    if experiment_key:
+        for k, v in test_results["bbox"].items():
+            print(f"test/{k}: {v}")
+            experiment.log_metrics(v, prefix=f"test/{k}")
 
-    # log image predictions
-    log_image_predictions(
-        predictor=predictor,
-        experiment=experiment,
-        metadata=datamodule.get_metadata(split="test"),
-        num_images=10,
-    )
+        # log image predictions
+        log_image_predictions(
+            predictor=predictor,
+            experiment=experiment,
+            metadata=datamodule.get_metadata(split="test"),
+            num_images=10,
+        )
 
     print("\n\nEnd Evaluation")
-    print("====================\n\n")
-
-    # log model
-    print("\n\n====================")
-    print("Log Model")
-
-    experiment.log_model("faster_rcnn", cfg.MODEL.WEIGHTS)
-
-    print("\n\nEnd Log Model")
     print("====================\n\n")
 
 
@@ -158,6 +107,11 @@ if __name__ == "__main__":
         default="configs/train.yaml",
         help="Path to training configuration file",
     )
+    parser.add_argument(
+        "--experiment_key",
+        default=None,
+        help="Comet ML experiment key",
+    )
 
     args = parser.parse_args()
 
@@ -166,4 +120,4 @@ if __name__ == "__main__":
     params_cfg.merge_from_file(args.model_config)
     params_cfg.merge_from_file(args.train_config)
 
-    main(params_cfg)
+    main(params_cfg, args.experiment_key)
