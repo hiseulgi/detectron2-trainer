@@ -1,4 +1,4 @@
 MODEL_FACTORY:
-  HYPERPARAMS: configs/experiment/faster_rcnn_base.yaml
+  HYPERPARAMS: configs/experiment/retinanet_base.yaml
   IS_USE_EPOCH: False # if True, the value of SOLVER.MAX_ITER, SOLVER.STEPS, and TEST.EVAL_PERIOD will be replaced by the value from the notebook
   TOTAL_EPOCHS: 20 # the number of epochs to train the model (only used if IS_USE_EPOCH is True)
