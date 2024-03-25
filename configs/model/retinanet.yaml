@@ -1,0 +1,2 @@
+MODEL_FACTORY:
+  CFG: COCO-Detection/retinanet_R_50_FPN_3x.yaml
