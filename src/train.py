@@ -154,6 +154,11 @@ if __name__ == "__main__":
         help="Path to model configuration file",
     )
     parser.add_argument(
+        "--experiment",
+        default="configs/experiment/faster_rcnn_base.yaml",
+        help="Path to experiment configuration file",
+    )
+    parser.add_argument(
         "--train_config",
         default="configs/train.yaml",
         help="Path to training configuration file",
@@ -165,5 +170,6 @@ if __name__ == "__main__":
     params_cfg.merge_from_file(args.data_config)
     params_cfg.merge_from_file(args.model_config)
     params_cfg.merge_from_file(args.train_config)
+    params_cfg.MODEL_FACTORY.HYPERPARAMS = args.experiment
 
     main(params_cfg)
