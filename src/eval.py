@@ -13,8 +13,8 @@ from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from dotenv import load_dotenv
 from yacs.config import CfgNode
 
+from models.detectron2_model import FasterRCNN
 from src.data.data_module import CocoDataModule
-from src.models.faster_rcnn import FasterRCNN
 from src.trainer.comet_trainer import CometDefaultTrainer, log_image_predictions
 from src.utils.config import get_params_cfg_defaults
 
@@ -67,7 +67,6 @@ def main(params_cfg: CfgNode, experiment_key: str = None):
     # EVALUATION
     # Find the latest checkpoint
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
     cfg.DATASETS.TEST = params_cfg.DATAMODULE.DATASETS_NAME + "_test"
 
     predictor = DefaultPredictor(cfg)

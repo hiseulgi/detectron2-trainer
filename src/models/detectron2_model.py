@@ -10,7 +10,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.engine import DefaultPredictor, hooks
 
 
-class FasterRCNN:
+class Detectron2Model:
 
     # note: default values according to chv datasets
     def __init__(
