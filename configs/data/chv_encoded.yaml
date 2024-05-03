@@ -1,0 +1,6 @@
+DATAMODULE:
+  DATASETS_NAME: chv_dataset_encoded
+  IMAGES_PATH: data/chv_dataset/images
+  TRAIN_ANNOTATIONS: data/chv_dataset/annotations/train_encoded.json
+  VAL_ANNOTATIONS: data/chv_dataset/annotations/valid_encoded.json
+  TEST_ANNOTATIONS: data/chv_dataset/annotations/test_encoded.json
